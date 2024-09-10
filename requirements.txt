@@ -5,7 +5,7 @@ setuptools>=42
 plotly
 scipy
 scikit-learn==1.3.2
-shap>=0.41.0
+shap>=0.42.0
 pandas>=1.3.0
 numpy==1.19.5
 matplotlib>=3.4.0
