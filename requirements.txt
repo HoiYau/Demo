@@ -6,3 +6,4 @@ plotly
 scipy
 scikit-learn==1.3.2
 shap==0.41.0
+streamlit-shap>=0.1.1
