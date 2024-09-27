@@ -38,7 +38,7 @@ explainer = shap.TreeExplainer(clf)
 shap_values = explainer.shap_values(X_test)
 
 # Streamlit app title
-st.title("Customer Satisfaction Prediction Tool")
+st.title("Customer Satisfaction Prediction")
 
 # Part 1: Overview of Customer Satisfaction
 st.header("Customer Satisfaction Overview")
