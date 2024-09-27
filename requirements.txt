@@ -9,3 +9,4 @@ shap==0.42.0
 pandas
 numpy
 streamlit-shap==1.0.1
+lightgbm
