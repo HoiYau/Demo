@@ -2,98 +2,121 @@ import streamlit as st
 import shap
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+import pickle
+from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 
-# Load the dataset (assuming it's in the same directory)
+# Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
 
-# Preprocessing
-X = customer.drop("Satisfaction Level", axis=1)
+# Preprocessing: Drop 'Satisfaction Level' and 'Customer ID'
+X = customer.drop(["Satisfaction Level", "Customer ID"], axis=1)
 y = customer['Satisfaction Level']
 
 # Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1)
 
-# Model training
-clf = RandomForestClassifier()
+# Load the original dataset (for displaying user input options)
+original_df = pd.read_csv("E-commerce Customer Behavior.csv")
+
+# Load the saved LabelEncoders from the pickle file
+with open('label_encoders.pkl', 'rb') as f:
+    encoders = pickle.load(f)
+
+# Model training with LightGBM
+clf = LGBMClassifier()
 clf.fit(X_train, y_train)
 
 # Make predictions
 y_pred = clf.predict(X_test)
 
-# SHAP explainer
+# SHAP explainer using LightGBM model
 explainer = shap.TreeExplainer(clf)
 shap_values = explainer.shap_values(X_test)
 
-# Streamlit app
-st.title("SHAP Analysis for Satisfactory Level")
+# Streamlit app title
+st.title("Customer Satisfaction Prediction Tool")
 
-# Part 1: General SHAP Analysis
-st.header("Part 1: General SHAP Analysis")
-st.dataframe(classification_report(y_pred, y_test,output_dict=True))
+# Part 1: Overview of Customer Satisfaction
+st.header("Customer Satisfaction Overview")
+st.write("This section provides a general overview of customer satisfaction predictions.")
 
-# Summary plot
-st.subheader("Summary Plot")
+# Display overall satisfaction insights
+st.text("Satisfaction Summary")
+report = classification_report(y_test, y_pred, output_dict=True)
+st.write(f"**Overall Satisfaction**: {report['accuracy']:.2%}")
+st.write(f"**Satisfied Customers**: {report['1']['support']} out of {len(y_test)}")
+st.write(f"**Unsatisfied Customers**: {report['2']['support']} out of {len(y_test)}")
+st.write(f"**Neutral Customers**: {report['0']['support']} out of {len(y_test)}")
+
+# Summary plot (with simple explanation)
+st.subheader("Visualizing Key Drivers of Satisfaction")
+st.write("This plot shows the main factors influencing customer satisfaction across all predictions.")
 fig, ax = plt.subplots()
 shap.summary_plot(shap_values, X_test, show=False)
 st.pyplot(fig)
 
-# Summary plot for class 0
-st.subheader("Summary Plot for Class 0")
-fig, ax = plt.subplots()
-shap.summary_plot(shap_values[0], X_test, show=False)
-st.pyplot(fig)
+# Part 2: Individual Customer Satisfaction Prediction
+st.header("Predict Satisfaction for an Individual Customer")
+st.write("Enter the customer's details to predict their satisfaction level.")
 
-# Part 2: Individual Input Prediction & Explanation
-st.header("Part 2: Individual Input Prediction & Explanation")
-
-# Input fields for features
+# User input based on original dataset (with categorical values)
 input_data = {}
-for feature in X.columns:
-    if feature in ['Gender', 'Age', 'City' 'Membership Type',
-                   'Total Spend', 'Items Purchased', 'Average Rating', 'Discount Applied', 'Days Since Last Purchase']:
-        input_data[feature] = st.number_input(f"Enter {feature}:", value=int(X_test[feature].mean()), step=1)
-    else:  # For other features, keep the original input type
-        input_data[feature] = st.number_input(f"Enter {feature}:", value=X_test[feature].mean())
 
+for feature in original_df.columns:
+    if feature in encoders:  # If the feature was label-encoded
+        if feature == 'Satisfaction Level':
+           continue  # Skip 'Customer ID' and 'Satisfaction Level'
+        # Let user select original categorical values (before encoding)
+        unique_vals = original_df[feature].unique().tolist()
+        input_data[feature] = st.selectbox(f"Select {feature}:", unique_vals)
+    elif feature == 'Customer ID':
+        continue  # Skip 'Customer ID'
+    elif feature in ["Age", "Items Purchased", "Days Since Last Purchase"]:
+        # For specific columns, allow only integer inputs
+        input_data[feature] = st.number_input(f"Enter {feature}:", value=int(original_df[feature].mean()), step=1)
+    else:
+        # Use numeric input for non-categorical columns
+        input_data[feature] = st.number_input(f"Enter {feature}:", value=original_df[feature].mean())
 
-# Create a DataFrame from input data
-input_df = pd.DataFrame(input_data, index=[0])
+# Convert user input to a DataFrame
+input_df = pd.DataFrame([input_data])
 
-# Make prediction
+# Encode the categorical columns using the saved LabelEncoders
+for feature, encoder in encoders.items():
+    if feature in input_df.columns:
+        input_df[feature] = encoder.transform(input_df[feature])
+
+# Drop 'Customer ID' and any unnecessary columns
+input_df = input_df.drop(['Customer ID','Satisfaction Level'], axis=1, errors='ignore')
+
+# Make prediction based on the encoded user input
 prediction = clf.predict(input_df)[0]
-probability = clf.predict_proba(input_df)[0][1] 
+probability = clf.predict_proba(input_df)[0][1]
 
-# Display prediction
+# Display the prediction in simple terms
+st.write("### Prediction Result")
 if prediction == 1:
-    st.write(f"**Prediction:** Satisfied")
+    st.write(f"**The customer is likely to be Satisfied.**")
 elif prediction == 2:
-    st.write(f"**Prediction:** Unsatisfied")
+    st.write(f"**The customer is likely to be Unsatisfied.**")
 elif prediction == 0:
-    st.write(f"**Prediction:** Neutral")
+    st.write(f"**The customer is likely to be Neutral.**")
 
 st.write(f"**Satisfaction Probability:** {probability:.2f}")
 
-# SHAP explanation for the input
+# SHAP explanation for the input (with a non-technical explanation)
+st.subheader("Why this prediction?")
+st.write("Below is a visual explanation of the main factors influencing the prediction for this specific customer.")
+st.write("The graph helps show which details increased or decreased the likelihood of the customer being satisfied.")
 shap_values_input = explainer.shap_values(input_df)
 
-
 # Force plot
-st.subheader("Force Plot")
-# fig, ax = plt.subplots()
-# shap.plots.force(explainer.expected_value[0], shap_values_input[0,:], input_df.iloc[0,:], matplotlib=True)
 st_shap(shap.force_plot(explainer.expected_value[0], shap_values_input[0], input_df), height=400, width=1000)
 
-# st.write(input_df)
-# st.pyplot(fig,bbox_inches='tight')
-
 # Decision plot
-st.subheader("Decision Plot")
-# fig, ax = plt.subplots()
-# shap.decision_plot(explainer.expected_value[0], shap_values_input[0], X_test.columns)
+st.write("Here's another view of how the decision was made:")
 st_shap(shap.decision_plot(explainer.expected_value[0], shap_values_input[0], X_test.columns))
-# st.pyplot(fig)
