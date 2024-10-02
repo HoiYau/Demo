@@ -10,3 +10,4 @@ pandas
 numpy
 streamlit-shap==1.0.1
 lightgbm
+sweetviz
