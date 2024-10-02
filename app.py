@@ -16,7 +16,7 @@ from sweetviz import FeatureConfig  # Import FeatureConfig for custom configurat
 customer = pd.read_csv("fyp.csv")
 
 # Preprocessing: Drop 'Satisfaction Level' and 'Customer ID'
-X = customer.drop(["Satisfaction Level", "Customer ID"], axis=1)
+X = customer.drop(["Satisfaction Level"], axis=1)
 y = customer['Satisfaction Level']
 
 # Train-test split
