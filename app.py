@@ -9,8 +9,8 @@ from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 import sweetviz as sv
-import streamlit.components.v1 as components  
-from sweetviz import FeatureConfig
+import streamlit.components.v1 as components  # For embedding HTML
+from sweetviz import FeatureConfig  # Import FeatureConfig for custom configurations
 
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
@@ -25,8 +25,10 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 # Load the original dataset (for displaying user input options)
 original_df = pd.read_csv("E-commerce Customer Behavior.csv")
 
-# Generate the Sweetviz report
+# Define feature configuration for Sweetviz
 config = FeatureConfig(force_num=['Satisfaction Level'])
+
+# Generate the Sweetviz report
 report = sv.analyze(customer, target_feat='Satisfaction Level', feat_cfg=config)
 report.show_html("Customer_Report.html")  # Save the report
 
@@ -138,5 +140,3 @@ st_shap(shap.force_plot(explainer.expected_value[0], shap_values_input[0], input
 # Decision plot
 st.write("Here's another view of how the decision was made:")
 st_shap(shap.decision_plot(explainer.expected_value[0], shap_values_input[0], X_test.columns))
-
-
