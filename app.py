@@ -9,7 +9,8 @@ from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 import sweetviz as sv
-import streamlit.components.v1 as components  # For embedding HTML
+import streamlit.components.v1 as components  
+from sweetviz import FeatureConfig
 
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
@@ -25,6 +26,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 original_df = pd.read_csv("E-commerce Customer Behavior.csv")
 
 # Generate the Sweetviz report
+config = FeatureConfig(force_num=['Satisfaction Level'])
 report = sv.analyze(customer, target_feat='Satisfaction Level', feat_cfg=config)
 report.show_html("Customer_Report.html")  # Save the report
 
