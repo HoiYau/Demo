@@ -8,9 +8,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
+import sweetviz as sv
 
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
+
+# Generate a Sweetviz report
+report = sv.analyze(customer)
+report.show_html("Customer_Report.html")  # This will save the report as an HTML file
 
 # Preprocessing: Drop 'Satisfaction Level' and 'Customer ID'
 X = customer.drop(["Satisfaction Level", "Customer ID"], axis=1)
@@ -38,7 +43,7 @@ explainer = shap.TreeExplainer(clf)
 shap_values = explainer.shap_values(X_test)
 
 # Streamlit app title
-st.title("Customer Satisfaction Prediction")
+st.title("Customer Satisfaction Prediction Tool")
 
 # Part 1: Overview of Customer Satisfaction
 st.header("Customer Satisfaction Overview")
@@ -58,7 +63,9 @@ st.write("This plot shows the main factors influencing customer satisfaction acr
 fig, ax = plt.subplots()
 shap.summary_plot(shap_values, X_test, show=False)
 st.pyplot(fig)
-
+fig, ax = plt.subplots()
+shap.summary_plot(shap_values[0], X_test)
+st.pyplot(fig)
 # Part 2: Individual Customer Satisfaction Prediction
 st.header("Predict Satisfaction for an Individual Customer")
 st.write("Enter the customer's details to predict their satisfaction level.")
@@ -120,3 +127,5 @@ st_shap(shap.force_plot(explainer.expected_value[0], shap_values_input[0], input
 # Decision plot
 st.write("Here's another view of how the decision was made:")
 st_shap(shap.decision_plot(explainer.expected_value[0], shap_values_input[0], X_test.columns))
+
+
