@@ -40,7 +40,7 @@ with open("Customer_Report.html", "r", encoding="utf-8") as f:
     report_html = f.read()
 
 # Display the report in the app
-components.html(report_html, height=800, width=1000, scrolling=True)
+components.html(report_html, height=800,scrolling=True)
 
 with open('label_encoders.pkl', 'rb') as f:
     encoders = pickle.load(f)
