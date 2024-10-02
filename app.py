@@ -9,13 +9,10 @@ from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 import sweetviz as sv
+import streamlit.components.v1 as components  # For embedding HTML
 
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
-
-# Generate a Sweetviz report
-report = sv.analyze(customer)
-report.show_html("Customer_Report.html")  # This will save the report as an HTML file
 
 # Preprocessing: Drop 'Satisfaction Level' and 'Customer ID'
 X = customer.drop(["Satisfaction Level", "Customer ID"], axis=1)
@@ -27,10 +24,22 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 # Load the original dataset (for displaying user input options)
 original_df = pd.read_csv("E-commerce Customer Behavior.csv")
 
-# Load the saved LabelEncoders from the pickle file
-with open('label_encoders.pkl', 'rb') as f:
-    encoders = pickle.load(f)
+# Generate the Sweetviz report
+report = sv.analyze(customer, target_feat='Satisfaction Level', feat_cfg=config)
+report.show_html("Customer_Report.html")  # Save the report
 
+# Display the Sweetviz report in Streamlit
+st.title("Customer Satisfaction Overview with Sweetviz Report")
+st.write("Below is the auto-generated analysis report of the dataset.")
+
+# Embed the Sweetviz HTML report in Streamlit
+with open("Customer_Report.html", "r", encoding="utf-8") as f:
+    report_html = f.read()
+
+# Display the report in the app
+components.html(report_html, height=800, scrolling=True)
+
+# Continue with model training and SHAP explanation as before...
 # Model training with LightGBM
 clf = LGBMClassifier()
 clf.fit(X_train, y_train)
