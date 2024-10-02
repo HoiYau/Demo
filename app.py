@@ -34,7 +34,6 @@ report.show_html("Customer_Report.html")  # Save the report
 
 # Display the Sweetviz report in Streamlit
 st.title("Customer Satisfaction Overview with Sweetviz Report")
-st.write("Below is the auto-generated analysis report of the dataset.")
 
 # Embed the Sweetviz HTML report in Streamlit
 with open("Customer_Report.html", "r", encoding="utf-8") as f:
@@ -43,7 +42,8 @@ with open("Customer_Report.html", "r", encoding="utf-8") as f:
 # Display the report in the app
 components.html(report_html, height=800, width=1000, scrolling=True)
 
-# Continue with model training and SHAP explanation as before...
+with open('label_encoders.pkl', 'rb') as f:
+    encoders = pickle.load(f)
 # Model training with LightGBM
 clf = LGBMClassifier()
 clf.fit(X_train, y_train)
