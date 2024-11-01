@@ -11,6 +11,13 @@ from streamlit_shap import st_shap
 import sweetviz as sv
 import streamlit.components.v1 as components  # For embedding HTML
 from sweetviz import FeatureConfig  # Import FeatureConfig for custom configurations
+import openai  # Import OpenAI library
+
+openai.api_key =  st.secrets["mykey"]
+
+# Function to decode binary input to text
+def binary_to_text(binary_data):
+    return binary_data.decode('utf-8') if isinstance(binary_data, bytes) else binary_data
 
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
@@ -37,13 +44,14 @@ st.title("Customer Satisfaction Overview with Sweetviz Report")
 
 # Embed the Sweetviz HTML report in Streamlit
 with open("Customer_Report.html", "r", encoding="utf-8") as f:
-    report_html = f.read()
+    report_html = binary_to_text(f.read())
 
 # Display the report in the app
-components.html(report_html, height=800,scrolling=True)
+components.html(report_html, height=800, scrolling=True)
 
 with open('label_encoders.pkl', 'rb') as f:
     encoders = pickle.load(f)
+
 # Model training with LightGBM
 clf = LGBMClassifier()
 clf.fit(X_train, y_train)
@@ -65,20 +73,66 @@ st.write("This section provides a general overview of customer satisfaction pred
 # Display overall satisfaction insights
 st.text("Satisfaction Summary")
 report = classification_report(y_test, y_pred, output_dict=True)
-st.write(f"**Overall Satisfaction**: {report['accuracy']:.2%}")
+st.write(f"**Overall Accuracy**: {report['accuracy']:.2%}")
 st.write(f"**Satisfied Customers**: {report['1']['support']} out of {len(y_test)}")
-st.write(f"**Unsatisfied Customers**: {report['2']['support']} out of {len(y_test)}")
-st.write(f"**Neutral Customers**: {report['0']['support']} out of {len(y_test)}")
+st.write(f"**Non-Satisfied Customers**: {report['0']['support']} out of {len(y_test)}")
 
-# Summary plot (with simple explanation)
-st.subheader("Visualizing Key Drivers of Satisfaction")
-st.write("This plot shows the main factors influencing customer satisfaction across all predictions.")
+# Function to generate GPT-3.5-turbo explanation for SHAP plots
+def explain_shap_plot(class_label, top_features):
+    prompt = f"""
+    Explanation of the Plot:
+
+    Feature Importance: The features are listed on the y-axis in order of importance, with the most impactful features at the top.
+    In this case:
+
+    {top_features} are the most important factors, meaning they have the largest average impact on customer satisfaction predictions.
+    Other features have minimal or no significant impact on satisfaction predictions.
+
+    SHAP Value (x-axis): The x-axis shows the mean absolute SHAP values for each feature, which represent the average magnitude of their impact on the model’s output.
+    Higher SHAP values indicate that the feature has a stronger influence on the model's prediction, either positively or negatively.
+
+    Color Coding (Class 0 and Class 1):
+
+    Class 0 (blue) and Class 1 (red) represent the two satisfaction categories in your model.
+    Class 1 represents satisfied customers, and Class 0 represents non-satisfied customers.
+    The lengths of the red and blue bars for each feature indicate the average impact of that feature for each class:
+
+    For example, features like Total Spend and Average Rating may show larger SHAP values for Class 1 than Class 0, suggesting that higher values in these features increase the likelihood of satisfaction.
+    """
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=200,
+        temperature=0.5,
+    )
+    explanation = response['choices'][0]['message']['content']
+    return explanation
+
+# Extract top features based on SHAP values for use in the prompt
+top_features = ", ".join(X_test.columns[np.argsort(-np.abs(shap_values[1]).mean(axis=0))[:5]])
+
+# Summary plot for All Classes
+st.subheader("Visualizing Key Drivers of Satisfaction for All Classes")
 fig, ax = plt.subplots()
 shap.summary_plot(shap_values, X_test, show=False)
 st.pyplot(fig)
+
+# Explanation for All Classes plot
+explanation_all = explain_shap_plot("All Classes", top_features)
+st.write("**Explanation:**")
+st.write(explanation_all)
+
+# Summary plot for Non-Satisfied Class
+st.subheader("Visualizing Key Drivers of Satisfaction for Non-Satisfied Class")
 fig, ax = plt.subplots()
-shap.summary_plot(shap_values[0], X_test)
+shap.summary_plot(shap_values[0], X_test, show=False)
 st.pyplot(fig)
+
+# Explanation for Non-Satisfied Class plot
+explanation_non_satisfied = explain_shap_plot("Non-Satisfied Class", top_features)
+st.write("**Explanation:**")
+st.write(explanation_non_satisfied)
+
 # Part 2: Individual Customer Satisfaction Prediction
 st.header("Predict Satisfaction for an Individual Customer")
 st.write("Enter the customer's details to predict their satisfaction level.")
@@ -89,7 +143,7 @@ input_data = {}
 for feature in original_df.columns:
     if feature in encoders:  # If the feature was label-encoded
         if feature == 'Satisfaction Level':
-           continue  # Skip 'Customer ID' and 'Satisfaction Level'
+            continue  # Skip 'Satisfaction Level'
         # Let user select original categorical values (before encoding)
         unique_vals = original_df[feature].unique().tolist()
         input_data[feature] = st.selectbox(f"Select {feature}:", unique_vals)
@@ -111,7 +165,7 @@ for feature, encoder in encoders.items():
         input_df[feature] = encoder.transform(input_df[feature])
 
 # Drop 'Customer ID' and any unnecessary columns
-input_df = input_df.drop(['Customer ID','Satisfaction Level'], axis=1, errors='ignore')
+input_df = input_df.drop(['Customer ID', 'Satisfaction Level'], axis=1, errors='ignore')
 
 # Make prediction based on the encoded user input
 prediction = clf.predict(input_df)[0]
@@ -121,10 +175,8 @@ probability = clf.predict_proba(input_df)[0][1]
 st.write("### Prediction Result")
 if prediction == 1:
     st.write(f"**The customer is likely to be Satisfied.**")
-elif prediction == 2:
-    st.write(f"**The customer is likely to be Unsatisfied.**")
 elif prediction == 0:
-    st.write(f"**The customer is likely to be Neutral.**")
+    st.write(f"**The customer is likely to be Non-Satisfied.**")
 
 st.write(f"**Satisfaction Probability:** {probability:.2f}")
 
