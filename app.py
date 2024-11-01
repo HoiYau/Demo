@@ -1,3 +1,5 @@
+%%writefile app.py
+
 import streamlit as st
 import shap
 import pandas as pd
@@ -14,10 +16,6 @@ from sweetviz import FeatureConfig  # Import FeatureConfig for custom configurat
 import openai  # Import OpenAI library
 
 openai.api_key =  st.secrets["mykey"]
-
-# Function to decode binary input to text
-def binary_to_text(binary_data):
-    return binary_data.decode('utf-8') if isinstance(binary_data, bytes) else binary_data
 
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
@@ -44,7 +42,7 @@ st.title("Customer Satisfaction Overview with Sweetviz Report")
 
 # Embed the Sweetviz HTML report in Streamlit
 with open("Customer_Report.html", "r", encoding="utf-8") as f:
-    report_html = binary_to_text(f.read())
+    report_html = f.read()
 
 # Display the report in the app
 components.html(report_html, height=800, scrolling=True)
@@ -140,25 +138,23 @@ st.write("Enter the customer's details to predict their satisfaction level.")
 # User input based on original dataset (with categorical values)
 input_data = {}
 
-# Loop through each feature in the original dataset and handle input accordingly
 for feature in original_df.columns:
     if feature in encoders:  # If the feature was label-encoded
         if feature == 'Satisfaction Level':
             continue  # Skip 'Satisfaction Level'
         # Let user select original categorical values (before encoding)
-        unique_vals = original_df[feature].dropna().unique().tolist()  # Drop any NaN values
+        unique_vals = original_df[feature].unique().tolist()
         input_data[feature] = st.selectbox(f"Select {feature}:", unique_vals)
     elif feature == 'Customer ID':
         continue  # Skip 'Customer ID'
-    elif pd.api.types.is_numeric_dtype(original_df[feature]):  # Check if column is numeric
-        # Use numeric input for numeric columns only
-        input_data[feature] = st.number_input(f"Enter {feature}:", 
-                                              value=float(original_df[feature].mean()), step=1.0)
+    elif feature in ["Age", "Items Purchased", "Days Since Last Purchase"]:
+        # For specific columns, allow only integer inputs
+        input_data[feature] = st.number_input(f"Enter {feature}:", value=int(original_df[feature].mean()), step=1)
     else:
-        # Handle unexpected non-numeric data gracefully
-        st.write(f"**Skipping unexpected data type for feature**: {feature}")
+        # Use numeric input for non-categorical columns
+        input_data[feature] = st.number_input(f"Enter {feature}:", value=original_df[feature].mean())
 
-# Convert user input to a DataFrame for model prediction
+# Convert user input to a DataFrame
 input_df = pd.DataFrame([input_data])
 
 # Encode the categorical columns using the saved LabelEncoders
@@ -166,7 +162,7 @@ for feature, encoder in encoders.items():
     if feature in input_df.columns:
         input_df[feature] = encoder.transform(input_df[feature])
 
-# Drop unnecessary columns if present
+# Drop 'Customer ID' and any unnecessary columns
 input_df = input_df.drop(['Customer ID', 'Satisfaction Level'], axis=1, errors='ignore')
 
 # Make prediction based on the encoded user input
