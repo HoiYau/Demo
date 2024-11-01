@@ -140,21 +140,25 @@ st.write("Enter the customer's details to predict their satisfaction level.")
 # User input based on original dataset (with categorical values)
 input_data = {}
 
+# Loop through each feature in the original dataset and handle input accordingly
 for feature in original_df.columns:
     if feature in encoders:  # If the feature was label-encoded
         if feature == 'Satisfaction Level':
             continue  # Skip 'Satisfaction Level'
         # Let user select original categorical values (before encoding)
-        unique_vals = original_df[feature].unique().tolist()
+        unique_vals = original_df[feature].dropna().unique().tolist()  # Drop any NaN values
         input_data[feature] = st.selectbox(f"Select {feature}:", unique_vals)
-    elif feature in ["Age", "Items Purchased", "Days Since Last Purchase"]:
-        # For specific columns, allow only integer inputs
-        input_data[feature] = st.number_input(f"Enter {feature}:", value=int(original_df[feature].mean()), step=1)
+    elif feature == 'Customer ID':
+        continue  # Skip 'Customer ID'
+    elif pd.api.types.is_numeric_dtype(original_df[feature]):  # Check if column is numeric
+        # Use numeric input for numeric columns only
+        input_data[feature] = st.number_input(f"Enter {feature}:", 
+                                              value=float(original_df[feature].mean()), step=1.0)
     else:
-        # Use numeric input for non-categorical columns
-        input_data[feature] = st.number_input(f"Enter {feature}:", value=original_df[feature].mean())
+        # Handle unexpected non-numeric data gracefully
+        st.write(f"**Skipping unexpected data type for feature**: {feature}")
 
-# Convert user input to a DataFrame
+# Convert user input to a DataFrame for model prediction
 input_df = pd.DataFrame([input_data])
 
 # Encode the categorical columns using the saved LabelEncoders
@@ -162,8 +166,8 @@ for feature, encoder in encoders.items():
     if feature in input_df.columns:
         input_df[feature] = encoder.transform(input_df[feature])
 
-# Drop 'Customer ID' and any unnecessary columns
-input_df = input_df.drop(['Satisfaction Level'], axis=1, errors='ignore')
+# Drop unnecessary columns if present
+input_df = input_df.drop(['Customer ID', 'Satisfaction Level'], axis=1, errors='ignore')
 
 # Make prediction based on the encoded user input
 prediction = clf.predict(input_df)[0]
