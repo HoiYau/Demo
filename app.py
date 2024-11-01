@@ -147,8 +147,6 @@ for feature in original_df.columns:
         # Let user select original categorical values (before encoding)
         unique_vals = original_df[feature].unique().tolist()
         input_data[feature] = st.selectbox(f"Select {feature}:", unique_vals)
-    elif feature == 'Customer ID':
-        continue  # Skip 'Customer ID'
     elif feature in ["Age", "Items Purchased", "Days Since Last Purchase"]:
         # For specific columns, allow only integer inputs
         input_data[feature] = st.number_input(f"Enter {feature}:", value=int(original_df[feature].mean()), step=1)
@@ -165,7 +163,7 @@ for feature, encoder in encoders.items():
         input_df[feature] = encoder.transform(input_df[feature])
 
 # Drop 'Customer ID' and any unnecessary columns
-input_df = input_df.drop(['Customer ID', 'Satisfaction Level'], axis=1, errors='ignore')
+input_df = input_df.drop(['Satisfaction Level'], axis=1, errors='ignore')
 
 # Make prediction based on the encoded user input
 prediction = clf.predict(input_df)[0]
