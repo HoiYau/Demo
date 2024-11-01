@@ -15,10 +15,6 @@ import openai  # Import OpenAI library
 
 openai.api_key =  st.secrets["mykey"]
 
-# Function to decode binary input to text
-def binary_to_text(binary_data):
-    return binary_data.decode('utf-8') if isinstance(binary_data, bytes) else binary_data
-
 # Load the encoded dataset for model training
 customer = pd.read_csv("fyp.csv")
 
@@ -44,7 +40,7 @@ st.title("Customer Satisfaction Overview with Sweetviz Report")
 
 # Embed the Sweetviz HTML report in Streamlit
 with open("Customer_Report.html", "r", encoding="utf-8") as f:
-    report_html = binary_to_text(f.read())
+    report_html = f.read()
 
 # Display the report in the app
 components.html(report_html, height=800, scrolling=True)
