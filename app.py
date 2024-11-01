@@ -138,7 +138,7 @@ input_data = {}
 
 for feature in original_df.columns:
     if feature in encoders:  # If the feature was label-encoded
-        if feature == 'Satisfaction Level' or feature == 'Customer ID':
+        if feature == 'Satisfaction Level':
             continue  # Skip 'Satisfaction Level'
         # Let user select original categorical values (before encoding)
         unique_vals = original_df[feature].unique().tolist()
